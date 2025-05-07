@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  asterisk:
+    image: andrius/asterisk
+    container_name: asterisk
+    ports:
+      - "5060:5060/udp"
+      - "5061:5061/tcp"
+      - "8088:8088/tcp"
+      - "10000-10010:10000-10010/udp"
+    volumes:
+      - ./asterisk/asterisk-config/pjsip.conf:/etc/asterisk/pjsip.conf
+      - ./asterisk/asterisk-config/extensions.conf:/etc/asterisk/extensions.conf
+      - ./asterisk/asterisk-config/http.conf:/etc/asterisk/http.conf
+      - ./asterisk/asterisk-config/ari.conf:/etc/asterisk/ari.conf
+      - ./asterisk/asterisk-config/modules.conf:/etc/asterisk/modules.conf
+      - ./asterisk-sounds:/var/lib/asterisk/sounds
+    restart: always
+    networks:
+      - asterisknet
+
+  go-tts:
+    build:
+      context: ./golang_asterisk_htgo_tts
+      dockerfile: Dockerfile
+    container_name: go-tts
+    ports:
+      - "5000:5000"  # Add this line to expose port 5000
+    volumes:
+      - ./asterisk-sounds:/app/asterisk-sounds
+    depends_on:
+      - asterisk
+    restart: always
+    networks:
+      - asterisknet
+
+networks:
+  asterisknet:
+    driver: bridge
