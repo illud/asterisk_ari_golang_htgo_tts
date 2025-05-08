@@ -139,25 +139,27 @@ func handleFlow(ctx context.Context, channel *ari.ChannelHandle, flowMap models.
 		return
 	}
 
-	uuidForCall := uuid.New().String()
-	// Generate speech with language support
-	filePath := fmt.Sprintf("./asterisk-sounds/step_%s.ulaw", uuidForCall)
-	err := espeak.GenerateSpeech(step.Text, filePath)
-	if err != nil {
-		log.Error("Failed to generate speech", "error", err)
-		return
-	}
+	if step.Type != "yes" && step.Type != "no" {
+		uuidForCall := uuid.New().String()
+		// Generate speech with language support
+		filePath := fmt.Sprintf("./asterisk-sounds/step_%s.ulaw", uuidForCall)
+		err := espeak.GenerateSpeech(step.Text, filePath)
+		if err != nil {
+			log.Error("Failed to generate speech", "error", err)
+			return
+		}
 
-	// Play the generated audio
-	soundURI := fmt.Sprintf("sound:step_%s", uuidForCall)
-	if err := play.Play(ctx, channel, play.URI(soundURI)).Err(); err != nil {
-		log.Error("Failed to play sound", "error", err)
-		return
-	}
+		// Play the generated audio
+		soundURI := fmt.Sprintf("sound:step_%s", uuidForCall)
+		if err := play.Play(ctx, channel, play.URI(soundURI)).Err(); err != nil {
+			log.Error("Failed to play sound", "error", err)
+			return
+		}
 
-	// Clean up the generated file after playing
-	if err := os.Remove(filePath); err != nil {
-		log.Error("Failed to remove temporary file", "error", err)
+		// Clean up the generated file after playing
+		if err := os.Remove(filePath); err != nil {
+			log.Error("Failed to remove temporary file", "error", err)
+		}
 	}
 
 	// Handle the type of step
@@ -170,6 +172,7 @@ func handleFlow(ctx context.Context, channel *ari.ChannelHandle, flowMap models.
 		handleFlow(ctx, channel, flowMap, *step.Next)
 
 	case "question":
+		// If it's a question, wait for a DTMF response
 		dtmfEvents := channel.Subscribe(ari.Events.ChannelDtmfReceived)
 		defer dtmfEvents.Cancel()
 
@@ -183,6 +186,7 @@ func handleFlow(ctx context.Context, channel *ari.ChannelHandle, flowMap models.
 						channel.Hangup()
 						return
 					}
+					// Move to the next step based on DTMF input
 					handleFlow(ctx, channel, flowMap, nextID)
 					return
 				}
@@ -190,6 +194,20 @@ func handleFlow(ctx context.Context, channel *ari.ChannelHandle, flowMap models.
 				return
 			}
 		}
+
+	case "yes":
+		if step.Next == nil {
+			channel.Hangup()
+			return
+		}
+		handleFlow(ctx, channel, flowMap, *step.Next)
+
+	case "no":
+		if step.Next == nil {
+			channel.Hangup()
+			return
+		}
+		handleFlow(ctx, channel, flowMap, *step.Next)
 
 	default:
 		log.Error("unknown step type", "type", step.Type)

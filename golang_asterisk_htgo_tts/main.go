@@ -7,6 +7,8 @@ import (
 	models "golang_asterisk/models"
 	"io"
 	"net/http"
+
+	"github.com/rs/cors"
 )
 
 func handlePost(w http.ResponseWriter, r *http.Request) {
@@ -46,7 +48,14 @@ func handlePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Use default CORS settings (allow all origins)
+	c := cors.Default()
+
+	// Apply CORS middleware to the server
 	http.HandleFunc("/call", handlePost)
+	handler := c.Handler(http.DefaultServeMux)
+
+	// Start the server with CORS support
 	fmt.Println("Listening on :5000...")
-	http.ListenAndServe(":5000", nil)
+	http.ListenAndServe(":5000", handler)
 }

@@ -35,6 +35,16 @@ services:
     networks:
       - asterisknet
 
+  frontend:
+    build:
+      context: ./riskflow
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
+
 networks:
   asterisknet:
     driver: bridge
